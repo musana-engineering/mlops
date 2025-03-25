@@ -1,0 +1,16 @@
+azure-identity
+azure-ai-ml
+mltable
+pandas
+python-dotenv
+mltable 
+azureml-fsspec
+ipykernel
+argparse
+scikit-learn
+matplotlib
+azureml-defaults
+mlflow
+azure-ai-ml
+mltable
+azureml-mlflow
