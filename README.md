@@ -5,3 +5,4 @@ In this series, we will walk through a concrete example of solving a Machine Lea
 ![gbj-ml](https://github.com/user-attachments/assets/fc5a6fc8-b158-499f-86dc-88760526c71c)
 
 Head over to https://musana.engineering for more details
+![MLOPS_v3](https://github.com/user-attachments/assets/f8ca3463-6e32-4460-82da-97224648941f)
