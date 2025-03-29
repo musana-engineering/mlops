@@ -3,6 +3,7 @@ import joblib
 import pandas as pd
 from azureml.core.model import Model
 
+
 def init():
     global model
     model_path = Model.get_model_path("globojava_demand_forecasting_monthly")
