@@ -1,19 +1,265 @@
-resource "azurerm_public_ip" "example" {
-  name                = "examplepip"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
+resource "azurerm_resource_group" "ml" {
+  name     = "gbj-mlops-rg"
+  location = local.location
+  tags     = local.tags
 }
 
-resource "azurerm_bastion_host" "example" {
-  name                = "examplebastion"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
+resource "azurerm_network_watcher" "watcher" {
+  name                = "gbj-mlops-netw"
+  location            = azurerm_resource_group.ml.location
+  resource_group_name = azurerm_resource_group.ml.name
+
+  tags = local.tags
+
+  depends_on = [azurerm_resource_group.ml]
+}
+
+resource "azurerm_network_security_group" "bastion" {
+  name                = "gbj-mlops-bastion"
+  location            = azurerm_resource_group.ml.location
+  resource_group_name = azurerm_resource_group.ml.name
+
+  security_rule {
+    name                       = "AllowHttpsInBound"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    source_address_prefix      = "Internet"
+    destination_port_range     = "443"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "AllowGatewayManagerInBound"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    source_address_prefix      = "GatewayManager"
+    destination_port_range     = "443"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "AllowLoadBalancerInBound"
+    priority                   = 120
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    source_address_prefix      = "AzureLoadBalancer"
+    destination_port_range     = "443"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "AllowBastionHostCommunicationInBound"
+    priority                   = 130
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_port_ranges    = ["8080", "5701"]
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  security_rule {
+    name                       = "DenyAllInBound"
+    priority                   = 1000
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    source_address_prefix      = "*"
+    destination_port_range     = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "AllowSshRdpOutBound"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    source_address_prefix      = "*"
+    destination_port_ranges    = ["22", "3389"]
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  security_rule {
+    name                       = "AllowAzureCloudCommunicationOutBound"
+    priority                   = 110
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    source_address_prefix      = "*"
+    destination_port_range     = "443"
+    destination_address_prefix = "AzureCloud"
+  }
+
+  security_rule {
+    name                       = "AllowBastionHostCommunicationOutBound"
+    priority                   = 120
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_port_ranges    = ["8080", "5701"]
+    destination_address_prefix = "VirtualNetwork"
+  }
+
+  security_rule {
+    name                       = "AllowGetSessionInformationOutBound"
+    priority                   = 130
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    source_address_prefix      = "*"
+    destination_port_ranges    = ["80", "443"]
+    destination_address_prefix = "Internet"
+  }
+
+  security_rule {
+    name                       = "DenyAllOutBound"
+    priority                   = 1000
+    direction                  = "Outbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    source_address_prefix      = "*"
+    destination_port_range     = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_network_security_group" "ml" {
+  name                = "gbj-mlops-ml"
+  location            = azurerm_resource_group.ml.location
+  resource_group_name = azurerm_resource_group.ml.name
+
+}
+
+resource "azurerm_virtual_network" "ml" {
+  name                = "gbj-mlops-vnet"
+  location            = azurerm_resource_group.ml.location
+  resource_group_name = azurerm_resource_group.ml.name
+  address_space       = local.vnet_address_space
+  tags                = local.tags
+}
+
+resource "azurerm_subnet" "bastion" {
+  name                                          = "AzureBastionSubnet"
+  resource_group_name                           = azurerm_resource_group.ml.name
+  virtual_network_name                          = azurerm_virtual_network.ml.name
+  address_prefixes                              = local.bastion_subnet_cidr
+  private_link_service_network_policies_enabled = true
+  service_endpoints = [
+    "Microsoft.Storage",
+    "Microsoft.Sql",
+    "Microsoft.ContainerRegistry",
+    "Microsoft.AzureCosmosDB",
+    "Microsoft.KeyVault",
+    "Microsoft.ServiceBus",
+    "Microsoft.EventHub",
+    "Microsoft.AzureActiveDirectory",
+  "Microsoft.Web"]
+
+  depends_on = [azurerm_network_security_group.bastion,
+  azurerm_network_security_group.ml]
+}
+
+resource "azurerm_subnet" "ml" {
+  name                                          = "gbj-mlops-ml"
+  resource_group_name                           = azurerm_resource_group.ml.name
+  virtual_network_name                          = azurerm_virtual_network.ml.name
+  address_prefixes                              = local.ml_subnet_cidr
+  private_link_service_network_policies_enabled = true
+  service_endpoints = [
+    "Microsoft.Storage",
+    "Microsoft.Sql",
+    "Microsoft.ContainerRegistry",
+    "Microsoft.AzureCosmosDB",
+    "Microsoft.KeyVault",
+    "Microsoft.ServiceBus",
+    "Microsoft.EventHub",
+    "Microsoft.AzureActiveDirectory",
+  "Microsoft.Web"]
+
+  depends_on = [azurerm_network_security_group.bastion,
+  azurerm_network_security_group.ml]
+}
+
+resource "azurerm_subnet_network_security_group_association" "ml" {
+  subnet_id                 = azurerm_subnet.ml.id
+  network_security_group_id = azurerm_network_security_group.ml.id
+
+  depends_on = [azurerm_network_security_group.bastion,
+  azurerm_network_security_group.ml]
+}
+
+resource "azurerm_subnet_network_security_group_association" "bastion" {
+  subnet_id                 = azurerm_subnet.bastion.id
+  network_security_group_id = azurerm_network_security_group.bastion.id
+
+  depends_on = [azurerm_network_security_group.bastion,
+  azurerm_network_security_group.ml]
+}
+
+resource "azurerm_private_dns_zone" "dns" {
+  for_each            = toset(local.private_dns_zones)
+  name                = each.value
+  resource_group_name = azurerm_resource_group.ml.name
+}
+
+data "azurerm_virtual_network" "ml" {
+  name                = azurerm_virtual_network.ml.name
+  resource_group_name = azurerm_resource_group.ml.name
+  depends_on          = [azurerm_virtual_network.ml]
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "dns" {
+  for_each              = toset(local.private_dns_zones)
+  name                  = azurerm_virtual_network.ml.name
+  resource_group_name   = azurerm_resource_group.ml.name
+  private_dns_zone_name = each.value
+  virtual_network_id    = data.azurerm_virtual_network.ml.id
+  tags                  = local.tags
+}
+
+resource "azurerm_public_ip" "bastion" {
+  name                = "gbj-mlops-bastion"
+  location            = azurerm_resource_group.ml.location
+  resource_group_name = azurerm_resource_group.ml.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+
+  depends_on = [azurerm_virtual_network.ml,
+    azurerm_network_security_group.bastion,
+  azurerm_network_security_group.ml]
+}
+
+resource "azurerm_bastion_host" "bastion" {
+  name                = "gbj-mlops-bastion"
+  location            = azurerm_resource_group.ml.location
+  resource_group_name = azurerm_resource_group.ml.name
 
   ip_configuration {
-    name                 = "configuration"
-    subnet_id            = azurerm_subnet.example.id
-    public_ip_address_id = azurerm_public_ip.example.id
+    name                 = "gbj-mlops-bastion"
+    subnet_id            = azurerm_subnet.bastion.id
+    public_ip_address_id = azurerm_public_ip.bastion.id
   }
+
+  depends_on = [azurerm_virtual_network.ml,
+    azurerm_network_security_group.bastion,
+    azurerm_network_security_group.ml,
+    azurerm_subnet_network_security_group_association.bastion,
+  azurerm_subnet_network_security_group_association.ml]
 }

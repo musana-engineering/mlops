@@ -17,7 +17,7 @@ terraform {
     resource_group_name  = "rg-core"
     storage_account_name = "sacoreinfrastate"
     container_name       = "terraform"
-    key                  = "mlops/dev.terraform.tfstate"
+    key                  = "mlops/prod.terraform.tfstate"
     # access_key           = 
   }
 }
