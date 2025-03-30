@@ -26,7 +26,7 @@ resource "azurerm_key_vault" "ml" {
   name                            = "gbj-ml-prod-kv"
   location                        = azurerm_resource_group.ml.location
   resource_group_name             = azurerm_resource_group.ml.name
-  tenant_id                       = local.tenant_id
+  tenant_id                       = data.azurerm_subscription.current.tenant_id
   sku_name                        = "standard"
   enable_rbac_authorization       = true
   enabled_for_deployment          = true
@@ -227,13 +227,14 @@ resource "azurerm_network_interface" "ml" {
 }
 
 resource "azurerm_windows_virtual_machine" "ml" {
-  name                  = "gbj-ml-prod-vm"
-  location              = azurerm_resource_group.ml.location
-  resource_group_name   = azurerm_resource_group.ml.name
-  network_interface_ids = [azurerm_network_interface.ml.id]
-  size                  = "Standard_B4ms"
-  admin_username        = "musana.engineering"
-  admin_password        = "MusanaEng_2025"
+  name                              = "gbj-ml-prod-vm"
+  location                          = azurerm_resource_group.ml.location
+  resource_group_name               = azurerm_resource_group.ml.name
+  network_interface_ids             = [azurerm_network_interface.ml.id]
+  size                              = "Standard_B4ms"
+  admin_username                    = "musana.engineering"
+  admin_password                    = "MusanaEng_2025"
+  vm_agent_platform_updates_enabled = true
 
   source_image_reference {
     publisher = "MicrosoftWindowsDesktop"

@@ -9,12 +9,7 @@ terraform {
 
 provider "azurerm" {
   # Configuration options
-  features {
-    resource_group {
-      prevent_deletion_if_contains_resources = false
-    }
-  }
-
+  features {}
 }
 
 terraform {
@@ -22,7 +17,6 @@ terraform {
     resource_group_name  = "rg-core"
     storage_account_name = "sacoreinfrastate"
     container_name       = "terraform"
-    key                  = "mlops/infra/prod.terraform.tfstate"
-    # access_key           = 
+    key                  = "mlops/data/connections.terraform.tfstate"
   }
 }
