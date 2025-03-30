@@ -17,7 +17,7 @@ locals {
 
   tags = {
     provisioner = "terraform"
-    environment = "nonprod"
-    project     = "mlops"
+    environment = "prod"
+    project     = "ml-demand-forecasting"
   }
 }

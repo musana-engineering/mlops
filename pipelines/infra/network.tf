@@ -1,11 +1,11 @@
 resource "azurerm_resource_group" "ml" {
-  name     = "gbj-mlops-rg"
+  name     = "gbj-ml-prod-rg"
   location = local.location
   tags     = local.tags
 }
 
 resource "azurerm_network_watcher" "watcher" {
-  name                = "gbj-mlops-netw"
+  name                = "gbj-ml-prod-nw"
   location            = azurerm_resource_group.ml.location
   resource_group_name = azurerm_resource_group.ml.name
 
@@ -14,8 +14,8 @@ resource "azurerm_network_watcher" "watcher" {
   depends_on = [azurerm_resource_group.ml]
 }
 
-resource "azurerm_network_security_group" "bastion" {
-  name                = "gbj-mlops-bastion"
+resource "azurerm_network_security_group" "bas" {
+  name                = "gbj-ml-prod-bas"
   location            = azurerm_resource_group.ml.location
   resource_group_name = azurerm_resource_group.ml.name
 
@@ -56,7 +56,7 @@ resource "azurerm_network_security_group" "bastion" {
   }
 
   security_rule {
-    name                       = "AllowBastionHostCommunicationInBound"
+    name                       = "AllowbasHostCommunicationInBound"
     priority                   = 130
     direction                  = "Inbound"
     access                     = "Allow"
@@ -104,7 +104,7 @@ resource "azurerm_network_security_group" "bastion" {
   }
 
   security_rule {
-    name                       = "AllowBastionHostCommunicationOutBound"
+    name                       = "AllowbasHostCommunicationOutBound"
     priority                   = 120
     direction                  = "Outbound"
     access                     = "Allow"
@@ -141,21 +141,21 @@ resource "azurerm_network_security_group" "bastion" {
 }
 
 resource "azurerm_network_security_group" "ml" {
-  name                = "gbj-mlops-ml"
+  name                = "gbj-ml-prod-ml"
   location            = azurerm_resource_group.ml.location
   resource_group_name = azurerm_resource_group.ml.name
 
 }
 
 resource "azurerm_virtual_network" "ml" {
-  name                = "gbj-mlops-vnet"
+  name                = "gbj-ml-prod-vnet"
   location            = azurerm_resource_group.ml.location
   resource_group_name = azurerm_resource_group.ml.name
   address_space       = local.vnet_address_space
   tags                = local.tags
 }
 
-resource "azurerm_subnet" "bastion" {
+resource "azurerm_subnet" "bas" {
   name                                          = "AzureBastionSubnet"
   resource_group_name                           = azurerm_resource_group.ml.name
   virtual_network_name                          = azurerm_virtual_network.ml.name
@@ -172,12 +172,12 @@ resource "azurerm_subnet" "bastion" {
     "Microsoft.AzureActiveDirectory",
   "Microsoft.Web"]
 
-  depends_on = [azurerm_network_security_group.bastion,
+  depends_on = [azurerm_network_security_group.bas,
   azurerm_network_security_group.ml]
 }
 
 resource "azurerm_subnet" "ml" {
-  name                                          = "gbj-mlops-ml"
+  name                                          = "gbj-ml-prod-ml"
   resource_group_name                           = azurerm_resource_group.ml.name
   virtual_network_name                          = azurerm_virtual_network.ml.name
   address_prefixes                              = local.ml_subnet_cidr
@@ -193,7 +193,7 @@ resource "azurerm_subnet" "ml" {
     "Microsoft.AzureActiveDirectory",
   "Microsoft.Web"]
 
-  depends_on = [azurerm_network_security_group.bastion,
+  depends_on = [azurerm_network_security_group.bas,
   azurerm_network_security_group.ml]
 }
 
@@ -201,15 +201,15 @@ resource "azurerm_subnet_network_security_group_association" "ml" {
   subnet_id                 = azurerm_subnet.ml.id
   network_security_group_id = azurerm_network_security_group.ml.id
 
-  depends_on = [azurerm_network_security_group.bastion,
+  depends_on = [azurerm_network_security_group.bas,
   azurerm_network_security_group.ml]
 }
 
-resource "azurerm_subnet_network_security_group_association" "bastion" {
-  subnet_id                 = azurerm_subnet.bastion.id
-  network_security_group_id = azurerm_network_security_group.bastion.id
+resource "azurerm_subnet_network_security_group_association" "bas" {
+  subnet_id                 = azurerm_subnet.bas.id
+  network_security_group_id = azurerm_network_security_group.bas.id
 
-  depends_on = [azurerm_network_security_group.bastion,
+  depends_on = [azurerm_network_security_group.bas,
   azurerm_network_security_group.ml]
 }
 
@@ -234,32 +234,32 @@ resource "azurerm_private_dns_zone_virtual_network_link" "dns" {
   tags                  = local.tags
 }
 
-resource "azurerm_public_ip" "bastion" {
-  name                = "gbj-mlops-bastion"
+resource "azurerm_public_ip" "bas" {
+  name                = "gbj-ml-prod-bas"
   location            = azurerm_resource_group.ml.location
   resource_group_name = azurerm_resource_group.ml.name
   allocation_method   = "Static"
   sku                 = "Standard"
 
   depends_on = [azurerm_virtual_network.ml,
-    azurerm_network_security_group.bastion,
+    azurerm_network_security_group.bas,
   azurerm_network_security_group.ml]
 }
 
-resource "azurerm_bastion_host" "bastion" {
-  name                = "gbj-mlops-bastion"
+resource "azurerm_bastion_host" "bas" {
+  name                = "gbj-ml-prod-bas"
   location            = azurerm_resource_group.ml.location
   resource_group_name = azurerm_resource_group.ml.name
 
   ip_configuration {
-    name                 = "gbj-mlops-bastion"
-    subnet_id            = azurerm_subnet.bastion.id
-    public_ip_address_id = azurerm_public_ip.bastion.id
+    name                 = "gbj-ml-prod-bas"
+    subnet_id            = azurerm_subnet.bas.id
+    public_ip_address_id = azurerm_public_ip.bas.id
   }
 
   depends_on = [azurerm_virtual_network.ml,
-    azurerm_network_security_group.bastion,
+    azurerm_network_security_group.bas,
     azurerm_network_security_group.ml,
-    azurerm_subnet_network_security_group_association.bastion,
+    azurerm_subnet_network_security_group_association.bas,
   azurerm_subnet_network_security_group_association.ml]
 }

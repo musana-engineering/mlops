@@ -1,6 +1,6 @@
 // Storage Account
 resource "azurerm_storage_account" "ml" {
-  name                       = "gbjmlopsdata"
+  name                       = "gbjmlprodsa"
   location                   = local.location
   resource_group_name        = azurerm_resource_group.ml.name
   account_tier               = "Standard"
@@ -42,7 +42,7 @@ data "azurerm_private_dns_zone" "blob" {
 }
 
 resource "azurerm_private_endpoint" "blob" {
-  name                = "gbjmlopsdata"
+  name                = "gbjmlprodsa"
   resource_group_name = azurerm_resource_group.ml.name
   location            = azurerm_resource_group.ml.location
   subnet_id           = azurerm_subnet.ml.id
@@ -51,7 +51,7 @@ resource "azurerm_private_endpoint" "blob" {
     private_dns_zone_ids = ["${data.azurerm_private_dns_zone.blob.id}"]
   }
   private_service_connection {
-    name                           = "gbjmlopsdata"
+    name                           = "gbjmlprodsa"
     private_connection_resource_id = azurerm_storage_account.ml.id
     is_manual_connection           = false
     subresource_names              = ["blob"]

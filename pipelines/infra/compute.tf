@@ -1,7 +1,19 @@
-resource "azurerm_application_insights" "ml" {
-  name                = "gbj-mlops-appi"
+
+resource "azurerm_log_analytics_workspace" "ml" {
+  name                = "gbj-ml-prod-la"
   location            = azurerm_resource_group.ml.location
   resource_group_name = azurerm_resource_group.ml.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+
+  depends_on = [azurerm_resource_group.ml]
+}
+
+resource "azurerm_application_insights" "ml" {
+  name                = "gbj-ml-prod-appi"
+  location            = azurerm_resource_group.ml.location
+  resource_group_name = azurerm_resource_group.ml.name
+  workspace_id        = azurerm_log_analytics_workspace.ml.id
   application_type    = "web"
   tags                = local.tags
 
@@ -11,7 +23,7 @@ resource "azurerm_application_insights" "ml" {
 
 // Key Vault
 resource "azurerm_key_vault" "ml" {
-  name                            = "gbj-mlops-kv"
+  name                            = "gbj-ml-prod-kv"
   location                        = azurerm_resource_group.ml.location
   resource_group_name             = azurerm_resource_group.ml.name
   tenant_id                       = local.tenant_id
@@ -38,7 +50,7 @@ data "azurerm_private_dns_zone" "kv" {
 }
 
 resource "azurerm_private_endpoint" "kv" {
-  name                = "gbj-mlops-kv"
+  name                = "gbj-ml-prod-kv"
   resource_group_name = azurerm_resource_group.ml.name
   location            = azurerm_resource_group.ml.location
   subnet_id           = azurerm_subnet.ml.id
@@ -47,7 +59,7 @@ resource "azurerm_private_endpoint" "kv" {
     private_dns_zone_ids = ["${data.azurerm_private_dns_zone.kv.id}"]
   }
   private_service_connection {
-    name                           = "gbj-mlops-kv"
+    name                           = "gbj-ml-prod-kv"
     private_connection_resource_id = azurerm_key_vault.ml.id
     is_manual_connection           = false
     subresource_names              = ["vault"]
@@ -61,7 +73,7 @@ resource "azurerm_private_endpoint" "kv" {
 }
 
 resource "azurerm_machine_learning_workspace" "ml" {
-  name                          = "gbj-mlops-mlws"
+  name                          = "gbj-ml-prod-mlws"
   location                      = azurerm_resource_group.ml.location
   resource_group_name           = azurerm_resource_group.ml.name
   application_insights_id       = azurerm_application_insights.ml.id
@@ -69,7 +81,7 @@ resource "azurerm_machine_learning_workspace" "ml" {
   storage_account_id            = azurerm_storage_account.ml.id
   high_business_impact          = true
   tags                          = local.tags
-  friendly_name                 = "gbj-mlops-mlws"
+  friendly_name                 = "gbj-ml-prod-mlws"
   public_network_access_enabled = false
   description                   = "Machine Learning Operations"
 
@@ -106,7 +118,7 @@ data "azurerm_private_dns_zone" "notebook" {
 }
 
 resource "azurerm_private_endpoint" "workspace" {
-  name                = "gbj-mlops-mlws"
+  name                = "gbj-ml-prod-mlws"
   resource_group_name = azurerm_resource_group.ml.name
   location            = azurerm_resource_group.ml.location
   subnet_id           = azurerm_subnet.ml.id
@@ -115,7 +127,7 @@ resource "azurerm_private_endpoint" "workspace" {
     private_dns_zone_ids = ["${data.azurerm_private_dns_zone.workspace.id}"]
   }
   private_service_connection {
-    name                           = "gbj-mlops-mlws"
+    name                           = "gbj-ml-prod-mlws"
     private_connection_resource_id = azurerm_machine_learning_workspace.ml.id
     is_manual_connection           = false
     subresource_names              = ["amlworkspace"]
@@ -129,7 +141,7 @@ resource "azurerm_private_endpoint" "workspace" {
 }
 
 resource "azurerm_private_endpoint" "notebooks" {
-  name                = "gbj-mlops-jnb"
+  name                = "gbj-ml-prod-jnb"
   resource_group_name = azurerm_resource_group.ml.name
   location            = azurerm_resource_group.ml.location
   subnet_id           = azurerm_subnet.ml.id
@@ -138,7 +150,7 @@ resource "azurerm_private_endpoint" "notebooks" {
     private_dns_zone_ids = ["${data.azurerm_private_dns_zone.notebook.id}"]
   }
   private_service_connection {
-    name                           = "gbj-mlops-jnb"
+    name                           = "gbj-ml-prod-jnb"
     private_connection_resource_id = azurerm_machine_learning_workspace.ml.id
     is_manual_connection           = false
     subresource_names              = ["amlworkspace"]
@@ -169,7 +181,7 @@ resource "azurerm_role_assignment" "kv" {
 }
 
 resource "azurerm_machine_learning_compute_cluster" "ml" {
-  name                          = "gbj-mlops-clus"
+  name                          = "gbj-ml-prod-clus"
   location                      = azurerm_resource_group.ml.location
   vm_priority                   = "Dedicated"
   vm_size                       = "Standard_DS11_v2"
@@ -199,6 +211,63 @@ resource "azurerm_role_assignment" "cluster" {
   azurerm_virtual_network.ml]
 }
 
+// Developer Workstation
+resource "azurerm_network_interface" "ml" {
+  name                = "gbj-ml-prod-vm"
+  resource_group_name = azurerm_resource_group.ml.name
+  location            = azurerm_resource_group.ml.location
+
+  ip_configuration {
+    name                          = "gbj-ml-prod-vm"
+    private_ip_address_allocation = "Dynamic"
+    subnet_id                     = azurerm_subnet.ml.id
+  }
+
+  tags = local.tags
+}
+
+resource "azurerm_windows_virtual_machine" "ml" {
+  name                  = "gbj-ml-prod-vm"
+  location              = azurerm_resource_group.ml.location
+  resource_group_name   = azurerm_resource_group.ml.name
+  network_interface_ids = [azurerm_network_interface.ml.id]
+  size                  = "Standard_B4ms"
+  admin_username        = "musana.engineering"
+  admin_password        = "MusanaEng_2025"
+
+  source_image_reference {
+    publisher = "MicrosoftWindowsDesktop"
+    offer     = "windows-11"
+    sku       = "win11-22h2-pro"
+    version   = "latest"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "StandardSSD_LRS"
+    disk_size_gb         = 128
+  }
+
+  tags = local.tags
+
+  depends_on = [azurerm_virtual_network.ml, azurerm_subnet.ml,
+    azurerm_private_dns_zone.dns,
+  azurerm_storage_account.ml]
+}
+
+resource "azurerm_role_assignment" "vm" {
+  scope                = azurerm_machine_learning_workspace.ml.id
+  role_definition_name = "Contributor"
+  principal_id         = azurerm_windows_virtual_machine.ml.identity[0].principal_id
+
+  depends_on = [azurerm_machine_learning_compute_cluster.ml,
+    azurerm_virtual_network.ml,
+  azurerm_windows_virtual_machine.ml]
+}
 
 /*
 resource "azurerm_machine_learning_inference_cluster" "example" {
