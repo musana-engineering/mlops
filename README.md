@@ -6,8 +6,7 @@ In this series, we will walk through a concrete example of solving a Machine Lea
 ![image](https://github.com/user-attachments/assets/09670a58-e93e-4c6e-b6a3-bf8c92136c1f)
 
 Head over to https://musana.engineering for more details
-![image](https://github.com/user-attachments/assets/5e651b22-732b-4a70-a3f5-73c929468f82)
+![image](https://github.com/user-attachments/assets/c6a16565-9af3-4fa2-b4e4-a7cb48b83334)
+![image](https://github.com/user-attachments/assets/fdb76ccf-743a-4b12-9db2-e42c594eb795)
+![image](https://github.com/user-attachments/assets/db7b484f-bbf1-4174-88e4-3fa76bb7bcba)
 
-![image](https://github.com/user-attachments/assets/0dc1a961-5949-4ee3-a9a7-4cdb450dd0cb)
-
-![image](https://github.com/user-attachments/assets/7164b0b5-bb6b-42f5-876e-12606c0c252c)
